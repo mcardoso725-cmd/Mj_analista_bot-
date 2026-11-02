@@ -1,0 +1,61 @@
+import time
+import requests
+
+# === SEUS DADOS AQUI ===
+TELEGRAM_TOKEN = "SEU_TOKEN_DO_BOT_AQUI"
+CHAT_ID = "SEU_CHAT_ID_AQUI"
+RAPIDAPI_KEY = "SUA_CHAVE_API_FOOTBALL_AQUI"
+
+HEADERS = {
+    "x-rapidapi-key": RAPIDAPI_KEY,
+    "x-rapidapi-host": "v3.football.api-sports.io"
+}
+
+def enviar_telegram(mensagem):
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": CHAT_ID,
+        "text": mensagem,
+        "parse_mode": "Markdown"
+    }
+    try:
+        requests.post(url, json=payload)
+    except Exception as e:
+        print(f"Erro no Telegram: {e}")
+
+def analisar_jogos():
+    url = "https://v3.football.api-sports.io/fixtures?live=all"
+    try:
+        response = requests.get(url, headers=HEADERS)
+        dados = response.json()
+        jogos = dados.get("response", [])
+        
+        for item in jogos:
+            fixture = item.get("fixture", {})
+            teams = item.get("teams", {})
+            goals = item.get("goals", {})
+            
+            tempo = fixture.get("status", {}).get("elapsed", 0)
+            time_casa = teams.get("home", {}).get("name", "Casa")
+            time_fora = teams.get("away", {}).get("name", "Fora")
+            gols_casa = goals.get("home", 0)
+            gols_fora = goals.get("away", 0)
+
+            # Regra de análise (ex: jogo no 2º tempo e empatado)
+            if 70 <= tempo <= 85 and gols_casa == gols_fora:
+                mensagem = (
+                    f"🚨 *ALERTA AUTOMÁTICO!* 🚨\n\n"
+                    f"⚽ *{time_casa} {gols_casa} x {gols_fora} {time_fora}*\n"
+                    f"⏱️ *Tempo:* {tempo}' min\n"
+                    f"💡 *Análise:* Jogo empatado na reta final!"
+                )
+                enviar_telegram(mensagem)
+    except Exception as e:
+        print(f"Erro ao buscar jogos: {e}")
+
+if __name__ == "__main__":
+    print("Bot rodando 24h na nuvem...")
+    while True:
+        analisar_jogos()
+        # Espera 15 minutos (900 segundos) para não estourar o limite da API gratuita
+        time.sleep(900)
